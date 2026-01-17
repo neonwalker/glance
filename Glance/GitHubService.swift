@@ -72,3 +72,73 @@ enum GitHubServiceError: LocalizedError {
         }
     }
 }
+
+// MARK: - GitHub Service
+
+actor GitHubService {
+
+    private let session: URLSession
+    private let baseURL = "https://api.github.com"
+    private let apiVersion = "2022-11-28"
+    private let decoder: JSONDecoder
+
+    init() {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 15
+        config.timeoutIntervalForResource = 30
+        self.session = URLSession(configuration: config)
+        self.decoder = JSONDecoder()
+    }
+
+    // MARK: - Public API
+
+    func fetchWorkflowRuns(
+        owner: String,
+        repo: String,
+        token: String,
+        perPage: Int = 5
+    ) async throws -> [GitHubWorkflowRun] {
+        guard !token.isEmpty else {
+            throw GitHubServiceError.invalidToken
+        }
+
+        let urlString = "\(baseURL)/repos/\(owner)/\(repo)/actions/runs?per_page=\(perPage)"
+
+        guard let url = URL(string: urlString) else {
+            throw GitHubServiceError.httpError(statusCode: 0)
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue(apiVersion, forHTTPHeaderField: "X-GitHub-Api-Version")
+
+        let (data, response): (Data, URLResponse)
+        do {
+            (data, response) = try await session.data(for: request)
+        } catch {
+            throw GitHubServiceError.networkError(error)
+        }
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw GitHubServiceError.httpError(statusCode: 0)
+        }
+
+        switch httpResponse.statusCode {
+        case 200:
+            do {
+                let decoded = try decoder.decode(GitHubWorkflowRunsResponse.self, from: data)
+                return decoded.workflowRuns
+            } catch {
+                throw GitHubServiceError.decodingError(error)
+            }
+
+        case 401:
+            throw GitHubServiceError.invalidToken
+
+        default:
+            throw GitHubServiceError.httpError(statusCode: httpResponse.statusCode)
+        }
+    }
+}
