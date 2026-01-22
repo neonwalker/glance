@@ -18,10 +18,28 @@ class MenuBarViewModel: ObservableObject {
     @AppStorage("pollInterval") var pollInterval: Double = 30
 
     private let service = GitHubService()
+    private var pollingTask: Task<Void, Never>?
     private static let reposKey = "monitoredRepos"
 
     init() {
         loadRepos()
+    }
+
+    // MARK: - Polling
+
+    func startPolling() {
+        stopPolling()
+        pollingTask = Task {
+            while !Task.isCancelled {
+                await refresh()
+                try? await Task.sleep(for: .seconds(pollInterval))
+            }
+        }
+    }
+
+    func stopPolling() {
+        pollingTask?.cancel()
+        pollingTask = nil
     }
 
     // MARK: - Refresh
