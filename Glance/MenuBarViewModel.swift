@@ -24,6 +24,65 @@ class MenuBarViewModel: ObservableObject {
         loadRepos()
     }
 
+    // MARK: - Refresh
+
+    func refresh() async {
+        guard !githubToken.isEmpty else {
+            lastError = "No GitHub token configured. Open Settings."
+            return
+        }
+        guard !monitoredRepos.isEmpty else {
+            lastError = nil
+            runs = []
+            return
+        }
+
+        isLoading = true
+        lastError = nil
+
+        var allRuns: [WorkflowRun] = []
+
+        for repo in monitoredRepos {
+            do {
+                let apiRuns = try await service.fetchWorkflowRuns(
+                    owner: repo.owner,
+                    repo: repo.name,
+                    token: githubToken,
+                    perPage: 3
+                )
+
+                let iso = ISO8601DateFormatter()
+                iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+
+                let mapped: [WorkflowRun] = apiRuns.map { run in
+                    let updatedDate = iso.date(from: run.updatedAt)
+                        ?? ISO8601DateFormatter().date(from: run.updatedAt)
+                        ?? Date()
+
+                    return WorkflowRun(
+                        id: run.id,
+                        repo: repo,
+                        workflowName: run.name ?? "Workflow",
+                        branch: run.headBranch ?? "unknown",
+                        status: BuildStatus.from(status: run.status, conclusion: run.conclusion),
+                        displayTitle: run.displayTitle ?? "Run #\(run.runNumber)",
+                        htmlUrl: run.htmlUrl,
+                        updatedAt: updatedDate,
+                        runNumber: run.runNumber
+                    )
+                }
+
+                allRuns.append(contentsOf: mapped)
+            } catch {
+                print("Error fetching \(repo.fullName): \(error.localizedDescription)")
+                lastError = error.localizedDescription
+            }
+        }
+
+        self.runs = allRuns
+        self.isLoading = false
+    }
+
     // MARK: - Repo Management
 
     func addRepo(owner: String, name: String) {

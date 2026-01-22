@@ -42,6 +42,29 @@ enum BuildStatus: String, CaseIterable {
         case .unknown:    return "Unknown"
         }
     }
+
+    /// Map GitHub API status + conclusion to our domain model
+    static func from(status: String?, conclusion: String?) -> BuildStatus {
+        switch status {
+        case "queued", "waiting", "requested", "pending":
+            return .queued
+        case "in_progress":
+            return .running
+        case "completed":
+            switch conclusion {
+            case "success":
+                return .success
+            case "failure", "timed_out", "action_required":
+                return .failure
+            case "cancelled", "skipped", "stale", "neutral":
+                return .cancelled
+            default:
+                return .unknown
+            }
+        default:
+            return .unknown
+        }
+    }
 }
 
 /// A monitored repository (user-configured)
