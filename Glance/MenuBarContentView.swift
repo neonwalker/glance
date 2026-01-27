@@ -48,20 +48,22 @@ struct MenuBarContentView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 32)
+            } else if viewModel.runs.isEmpty && !viewModel.isLoading {
+                VStack(spacing: 8) {
+                    Image(systemName: "checkmark.seal")
+                        .font(.largeTitle)
+                        .foregroundStyle(.tertiary)
+                    Text("No recent runs")
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 32)
             } else {
                 ScrollView {
                     LazyVStack(spacing: 2) {
                         ForEach(viewModel.runs) { run in
-                            HStack {
-                                Text(run.repo.fullName)
-                                    .font(.system(.body, design: .monospaced))
-                                Spacer()
-                                Text(run.status.label)
-                                    .font(.caption)
-                                    .foregroundStyle(run.status.color)
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
+                            RunRowView(run: run)
                         }
                     }
                     .padding(.vertical, 4)
@@ -93,5 +95,56 @@ struct MenuBarContentView: View {
             .padding(.vertical, 8)
         }
         .frame(width: 360)
+    }
+}
+
+// MARK: - Single workflow run row
+
+struct RunRowView: View {
+    let run: WorkflowRun
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: run.status.icon)
+                .font(.system(size: 16))
+                .foregroundStyle(run.status.color)
+                .frame(width: 20)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(run.repo.fullName)
+                    .font(.system(.body, design: .monospaced, weight: .medium))
+                    .lineLimit(1)
+
+                HStack(spacing: 6) {
+                    Label(run.branch, systemImage: "arrow.branch")
+                    Text("·")
+                    Text(run.workflowName)
+                    Text("·")
+                    Text(run.timeAgo)
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+
+                if !run.displayTitle.isEmpty {
+                    Text(run.displayTitle)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer()
+
+            Text(run.status.label)
+                .font(.caption2.weight(.semibold))
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(run.status.color.opacity(0.15))
+                .foregroundStyle(run.status.color)
+                .clipShape(Capsule())
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
     }
 }
