@@ -14,5 +14,9 @@ struct GHActionsMonitorApp: App {
             Label("CI", systemImage: "hammer.fill")
         }
         .menuBarExtraStyle(.window)
+
+        Settings {
+            SettingsView(viewModel: viewModel)
+        }
     }
 }
