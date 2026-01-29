@@ -82,6 +82,11 @@ actor GitHubService {
     private let apiVersion = "2022-11-28"
     private let decoder: JSONDecoder
 
+    // ETag cache: keyed by request URL
+    private var etagCache: [String: String] = [:]
+    // Response cache: keyed by request URL — used when server returns 304
+    private var responseCache: [String: GitHubWorkflowRunsResponse] = [:]
+
     init() {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 15
@@ -114,6 +119,11 @@ actor GitHubService {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue(apiVersion, forHTTPHeaderField: "X-GitHub-Api-Version")
 
+        // Attach ETag for conditional request (saves rate limit if unchanged)
+        if let etag = etagCache[urlString] {
+            request.setValue(etag, forHTTPHeaderField: "If-None-Match")
+        }
+
         let (data, response): (Data, URLResponse)
         do {
             (data, response) = try await session.data(for: request)
@@ -127,12 +137,23 @@ actor GitHubService {
 
         switch httpResponse.statusCode {
         case 200:
+            if let etag = httpResponse.value(forHTTPHeaderField: "ETag") {
+                etagCache[urlString] = etag
+            }
             do {
                 let decoded = try decoder.decode(GitHubWorkflowRunsResponse.self, from: data)
+                responseCache[urlString] = decoded
                 return decoded.workflowRuns
             } catch {
                 throw GitHubServiceError.decodingError(error)
             }
+
+        case 304:
+            // Not Modified — return cached response
+            if let cached = responseCache[urlString] {
+                return cached.workflowRuns
+            }
+            return []
 
         case 401:
             throw GitHubServiceError.invalidToken
