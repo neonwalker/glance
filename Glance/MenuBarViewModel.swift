@@ -102,6 +102,14 @@ class MenuBarViewModel: ObservableObject {
             }
         }
 
+        // Sort: running/queued first, then by most recent
+        allRuns.sort { a, b in
+            let aPriority = (a.status == .running || a.status == .queued) ? 0 : 1
+            let bPriority = (b.status == .running || b.status == .queued) ? 0 : 1
+            if aPriority != bPriority { return aPriority < bPriority }
+            return a.updatedAt > b.updatedAt
+        }
+
         // Check for status changes → send notifications
         for run in allRuns {
             let key = "\(run.repo.fullName):\(run.workflowName):\(run.runNumber)"
