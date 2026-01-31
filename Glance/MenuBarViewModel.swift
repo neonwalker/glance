@@ -7,6 +7,7 @@ class MenuBarViewModel: ObservableObject {
     @Published var runs: [WorkflowRun] = []
     @Published var isLoading = false
     @Published var lastError: String?
+    @Published var rateLimitRemaining: Int?
 
     // Repo management
     @Published var monitoredRepos: [MonitoredRepo] = [] {
@@ -95,6 +96,11 @@ class MenuBarViewModel: ObservableObject {
                 print("Error fetching \(repo.fullName): \(error.localizedDescription)")
                 lastError = error.localizedDescription
             }
+        }
+
+        // Update rate limit display
+        if let rl = await service.rateLimit {
+            rateLimitRemaining = rl.remaining
         }
 
         self.runs = allRuns

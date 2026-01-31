@@ -87,6 +87,9 @@ actor GitHubService {
     // Response cache: keyed by request URL — used when server returns 304
     private var responseCache: [String: GitHubWorkflowRunsResponse] = [:]
 
+    // Rate limit info (updated from response headers)
+    private(set) var rateLimit: GitHubRateLimit?
+
     init() {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 15
@@ -107,6 +110,11 @@ actor GitHubService {
             throw GitHubServiceError.invalidToken
         }
 
+        // Check if we're already rate-limited
+        if let rl = rateLimit, rl.remaining == 0, Date() < rl.resetDate {
+            throw GitHubServiceError.rateLimitExceeded(resetDate: rl.resetDate)
+        }
+
         let urlString = "\(baseURL)/repos/\(owner)/\(repo)/actions/runs?per_page=\(perPage)"
 
         guard let url = URL(string: urlString) else {
@@ -119,7 +127,6 @@ actor GitHubService {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue(apiVersion, forHTTPHeaderField: "X-GitHub-Api-Version")
 
-        // Attach ETag for conditional request (saves rate limit if unchanged)
         if let etag = etagCache[urlString] {
             request.setValue(etag, forHTTPHeaderField: "If-None-Match")
         }
@@ -135,6 +142,9 @@ actor GitHubService {
             throw GitHubServiceError.httpError(statusCode: 0)
         }
 
+        // Update rate limit from headers
+        updateRateLimit(from: httpResponse)
+
         switch httpResponse.statusCode {
         case 200:
             if let etag = httpResponse.value(forHTTPHeaderField: "ETag") {
@@ -149,7 +159,6 @@ actor GitHubService {
             }
 
         case 304:
-            // Not Modified — return cached response
             if let cached = responseCache[urlString] {
                 return cached.workflowRuns
             }
@@ -158,8 +167,35 @@ actor GitHubService {
         case 401:
             throw GitHubServiceError.invalidToken
 
+        case 403:
+            if let rl = rateLimit, rl.remaining == 0 {
+                throw GitHubServiceError.rateLimitExceeded(resetDate: rl.resetDate)
+            }
+            throw GitHubServiceError.httpError(statusCode: 403)
+
         default:
             throw GitHubServiceError.httpError(statusCode: httpResponse.statusCode)
         }
+    }
+
+    // MARK: - Private Helpers
+
+    private func updateRateLimit(from response: HTTPURLResponse) {
+        guard
+            let limitStr = response.value(forHTTPHeaderField: "X-RateLimit-Limit"),
+            let limit = Int(limitStr),
+            let remainingStr = response.value(forHTTPHeaderField: "X-RateLimit-Remaining"),
+            let remaining = Int(remainingStr),
+            let resetStr = response.value(forHTTPHeaderField: "X-RateLimit-Reset"),
+            let resetTimestamp = Double(resetStr)
+        else {
+            return
+        }
+
+        rateLimit = GitHubRateLimit(
+            limit: limit,
+            remaining: remaining,
+            resetDate: Date(timeIntervalSince1970: resetTimestamp)
+        )
     }
 }

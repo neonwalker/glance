@@ -31,6 +31,18 @@ struct MenuBarContentView: View {
             .padding(.top, 12)
             .padding(.bottom, 8)
 
+            // Status bar
+            HStack(spacing: 8) {
+                Spacer()
+                if let remaining = viewModel.rateLimitRemaining {
+                    Text("\(remaining) API calls left")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 6)
+
             Divider()
 
             // Content

@@ -41,6 +41,12 @@ struct GeneralSettingsTab: View {
                         Text("Token configured")
                             .font(.caption)
                             .foregroundStyle(.secondary)
+
+                        if let remaining = viewModel.rateLimitRemaining {
+                            Text("· \(remaining) API calls remaining")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
                     }
                 }
             }
