@@ -1,4 +1,6 @@
 import SwiftUI
+import UserNotifications
+internal import Combine
 
 // MARK: - ViewModel
 
@@ -20,10 +22,12 @@ class MenuBarViewModel: ObservableObject {
 
     private let service = GitHubService()
     private var pollingTask: Task<Void, Never>?
+    private var previousStatuses: [String: BuildStatus] = []
     private static let reposKey = "monitoredRepos"
 
     init() {
         loadRepos()
+        requestNotificationPermission()
     }
 
     // MARK: - Polling
@@ -98,7 +102,15 @@ class MenuBarViewModel: ObservableObject {
             }
         }
 
-        // Update rate limit display
+        // Check for status changes → send notifications
+        for run in allRuns {
+            let key = "\(run.repo.fullName):\(run.workflowName):\(run.runNumber)"
+            if let previous = previousStatuses[key], previous != run.status {
+                sendNotification(run: run, previousStatus: previous)
+            }
+            previousStatuses[key] = run.status
+        }
+
         if let rl = await service.rateLimit {
             rateLimitRemaining = rl.remaining
         }
@@ -139,5 +151,34 @@ class MenuBarViewModel: ObservableObject {
               let repos = try? JSONDecoder().decode([MonitoredRepo].self, from: data)
         else { return }
         self.monitoredRepos = repos
+    }
+
+    // MARK: - Notifications
+
+    private func requestNotificationPermission() {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
+    }
+
+    private func sendNotification(run: WorkflowRun, previousStatus: BuildStatus) {
+        let content = UNMutableNotificationContent()
+
+        switch run.status {
+        case .success:
+            content.title = "Build Passed"
+            content.body = "\(run.repo.fullName) — \(run.workflowName) #\(run.runNumber)"
+        case .failure:
+            content.title = "Build Failed"
+            content.body = "\(run.repo.fullName) — \(run.workflowName) #\(run.runNumber)"
+            content.sound = .default
+        default:
+            return
+        }
+
+        let request = UNNotificationRequest(
+            identifier: "run-\(run.id)",
+            content: content,
+            trigger: nil
+        )
+        UNUserNotificationCenter.current().add(request)
     }
 }
