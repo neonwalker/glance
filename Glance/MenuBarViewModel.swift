@@ -9,6 +9,7 @@ class MenuBarViewModel: ObservableObject {
     @Published var runs: [WorkflowRun] = []
     @Published var isLoading = false
     @Published var lastError: String?
+    @Published var lastRefresh: Date?
     @Published var rateLimitRemaining: Int?
 
     // Repo management
@@ -124,6 +125,7 @@ class MenuBarViewModel: ObservableObject {
         }
 
         self.runs = allRuns
+        self.lastRefresh = Date()
         self.isLoading = false
     }
 

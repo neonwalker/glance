@@ -33,7 +33,15 @@ struct MenuBarContentView: View {
 
             // Status bar
             HStack(spacing: 8) {
+                if let lastRefresh = viewModel.lastRefresh {
+                    let formatter = RelativeDateTimeFormatter()
+                    Text("Updated \(formatter.localizedString(for: lastRefresh, relativeTo: Date()))")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+
                 Spacer()
+
                 if let remaining = viewModel.rateLimitRemaining {
                     Text("\(remaining) API calls left")
                         .font(.caption2)
@@ -44,6 +52,23 @@ struct MenuBarContentView: View {
             .padding(.bottom, 6)
 
             Divider()
+
+            // Error banner
+            if let error = viewModel.lastError {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.yellow)
+                    Text(error)
+                        .font(.caption)
+                        .lineLimit(2)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.yellow.opacity(0.1))
+
+                Divider()
+            }
 
             // Content
             if viewModel.monitoredRepos.isEmpty {
