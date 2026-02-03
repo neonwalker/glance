@@ -114,6 +114,7 @@ struct MenuBarContentView: View {
 
 struct RunRowView: View {
     let run: WorkflowRun
+    @State private var isHovered = false
 
     var body: some View {
         HStack(spacing: 10) {
@@ -158,5 +159,15 @@ struct RunRowView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
+        .background(isHovered ? Color.primary.opacity(0.05) : Color.clear)
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .onHover { hovering in
+            isHovered = hovering
+        }
+        .onTapGesture {
+            if let url = URL(string: run.htmlUrl) {
+                NSWorkspace.shared.open(url)
+            }
+        }
     }
 }
