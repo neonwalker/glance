@@ -148,6 +148,23 @@ class MenuBarViewModel: ObservableObject {
         monitoredRepos.removeAll { $0 == repo }
     }
 
+    // MARK: - Overall Status (for menu bar icon)
+
+    var overallStatusIcon: String {
+        if runs.isEmpty { return "circle.dashed" }
+        if runs.contains(where: { $0.status == .failure }) { return "xmark.circle.fill" }
+        if runs.contains(where: { $0.status == .running }) { return "arrow.triangle.2.circlepath" }
+        if runs.contains(where: { $0.status == .queued }) { return "clock.fill" }
+        return "checkmark.circle.fill"
+    }
+
+    var overallStatusColor: Color {
+        if runs.isEmpty { return .secondary }
+        if runs.contains(where: { $0.status == .failure }) { return .red }
+        if runs.contains(where: { $0.status == .running }) { return .orange }
+        return .green
+    }
+
     // MARK: - Persistence
 
     private func saveRepos() {

@@ -10,8 +10,17 @@ struct GHActionsMonitorApp: App {
                 .onAppear {
                     viewModel.startPolling()
                 }
+                .onDisappear {
+                    // Keep polling even when popover is closed
+                }
         } label: {
-            Label("CI", systemImage: "hammer.fill")
+            HStack(spacing: 4) {
+                Image(systemName: viewModel.overallStatusIcon)
+                    .symbolRenderingMode(.palette)
+                    .foregroundStyle(viewModel.overallStatusColor)
+                Text("CI")
+                    .font(.caption)
+            }
         }
         .menuBarExtraStyle(.window)
 
