@@ -16,6 +16,9 @@ struct SettingsView: View {
                 }
         }
         .frame(width: 480, height: 340)
+        .onAppear {
+            NSApp.activate(ignoringOtherApps: true)
+        }
     }
 }
 
@@ -43,7 +46,13 @@ struct GeneralSettingsTab: View {
                             .foregroundStyle(.secondary)
 
                         if let remaining = viewModel.rateLimitRemaining {
-                            Text("· \(remaining) API calls remaining")
+                            Text("· \(remaining) calls remaining")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+
+                        if let reset = viewModel.rateLimitResetDate {
+                            Text("· resets \(reset, style: .relative)")
                                 .font(.caption)
                                 .foregroundStyle(.tertiary)
                         }
@@ -137,22 +146,19 @@ struct RepoSettingsTab: View {
     }
 
     private func addRepo() {
-        let trimmed = newRepoInput
+        let parts = newRepoInput
             .trimmingCharacters(in: .whitespaces)
             .replacingOccurrences(of: "https://github.com/", with: "")
             .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            .split(separator: "/")
 
-        let parts = trimmed.split(separator: "/")
-        guard parts.count == 2,
-              !parts[0].isEmpty,
-              !parts[1].isEmpty
-        else {
+        guard parts.count == 2, !parts[0].isEmpty, !parts[1].isEmpty else {
             inputError = "Use the format: owner/repo (e.g. stuxf/gh-monitor)"
             return
         }
 
         inputError = nil
-        viewModel.addRepo(fullName: trimmed)
+        viewModel.addRepo(fullName: newRepoInput)
         newRepoInput = ""
     }
 }

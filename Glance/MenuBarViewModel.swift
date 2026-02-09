@@ -2,33 +2,37 @@ import SwiftUI
 import UserNotifications
 internal import Combine
 
-// MARK: - ViewModel
-
 @MainActor
 class MenuBarViewModel: ObservableObject {
     @Published var runs: [WorkflowRun] = []
     @Published var isLoading = false
     @Published var lastError: String?
-    @Published var lastRefresh: Date?
     @Published var rateLimitRemaining: Int?
+    @Published var rateLimitResetDate: Date?
 
-    // Repo management
     @Published var monitoredRepos: [MonitoredRepo] = [] {
         didSet { saveRepos() }
     }
 
-    // Settings (backed by UserDefaults)
     @AppStorage("githubToken") var githubToken: String = ""
     @AppStorage("pollInterval") var pollInterval: Double = 30
 
     private let service = GitHubService()
     private var pollingTask: Task<Void, Never>?
-    private var previousStatuses: [String: BuildStatus] = []
+    private var previousStatuses: [String: BuildStatus] = [:]
     private static let reposKey = "monitoredRepos"
+
+    private static let isoFormatter: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+    private static let isoFormatterFallback = ISO8601DateFormatter()
 
     init() {
         loadRepos()
         requestNotificationPermission()
+        startPolling()
     }
 
     // MARK: - Polling
@@ -74,36 +78,13 @@ class MenuBarViewModel: ObservableObject {
                     token: githubToken,
                     perPage: 3
                 )
-
-                let iso = ISO8601DateFormatter()
-                iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-
-                let mapped: [WorkflowRun] = apiRuns.map { run in
-                    let updatedDate = iso.date(from: run.updatedAt)
-                        ?? ISO8601DateFormatter().date(from: run.updatedAt)
-                        ?? Date()
-
-                    return WorkflowRun(
-                        id: run.id,
-                        repo: repo,
-                        workflowName: run.name ?? "Workflow",
-                        branch: run.headBranch ?? "unknown",
-                        status: BuildStatus.from(status: run.status, conclusion: run.conclusion),
-                        displayTitle: run.displayTitle ?? "Run #\(run.runNumber)",
-                        htmlUrl: run.htmlUrl,
-                        updatedAt: updatedDate,
-                        runNumber: run.runNumber
-                    )
-                }
-
-                allRuns.append(contentsOf: mapped)
+                allRuns.append(contentsOf: apiRuns.map { mapRun($0, for: repo) })
             } catch {
                 print("Error fetching \(repo.fullName): \(error.localizedDescription)")
                 lastError = error.localizedDescription
             }
         }
 
-        // Sort: running/queued first, then by most recent
         allRuns.sort { a, b in
             let aPriority = (a.status == .running || a.status == .queued) ? 0 : 1
             let bPriority = (b.status == .running || b.status == .queued) ? 0 : 1
@@ -111,7 +92,6 @@ class MenuBarViewModel: ObservableObject {
             return a.updatedAt > b.updatedAt
         }
 
-        // Check for status changes → send notifications
         for run in allRuns {
             let key = "\(run.repo.fullName):\(run.workflowName):\(run.runNumber)"
             if let previous = previousStatuses[key], previous != run.status {
@@ -122,11 +102,29 @@ class MenuBarViewModel: ObservableObject {
 
         if let rl = await service.rateLimit {
             rateLimitRemaining = rl.remaining
+            rateLimitResetDate = rl.resetDate
         }
 
         self.runs = allRuns
-        self.lastRefresh = Date()
         self.isLoading = false
+    }
+
+    private func mapRun(_ run: GitHubWorkflowRun, for repo: MonitoredRepo) -> WorkflowRun {
+        let updatedDate = Self.isoFormatter.date(from: run.updatedAt)
+            ?? Self.isoFormatterFallback.date(from: run.updatedAt)
+            ?? Date()
+
+        return WorkflowRun(
+            id: run.id,
+            repo: repo,
+            workflowName: run.name ?? "Workflow",
+            branch: run.headBranch ?? "unknown",
+            status: BuildStatus.from(status: run.status, conclusion: run.conclusion),
+            displayTitle: run.displayTitle ?? "Run #\(run.runNumber)",
+            htmlUrl: run.htmlUrl,
+            updatedAt: updatedDate,
+            runNumber: run.runNumber
+        )
     }
 
     // MARK: - Repo Management
@@ -139,7 +137,11 @@ class MenuBarViewModel: ObservableObject {
     }
 
     func addRepo(fullName: String) {
-        let parts = fullName.split(separator: "/")
+        let normalised = fullName
+            .trimmingCharacters(in: .whitespaces)
+            .replacingOccurrences(of: "https://github.com/", with: "")
+            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let parts = normalised.split(separator: "/")
         guard parts.count == 2 else { return }
         addRepo(owner: String(parts[0]), name: String(parts[1]))
     }
@@ -150,19 +152,31 @@ class MenuBarViewModel: ObservableObject {
 
     // MARK: - Overall Status (for menu bar icon)
 
+    var overallStatus: BuildStatus? {
+        guard !runs.isEmpty else { return nil }
+        if runs.contains(where: { $0.status == .failure }) { return .failure }
+        if runs.contains(where: { $0.status == .running }) { return .running }
+        if runs.contains(where: { $0.status == .queued }) { return .queued }
+        return .success
+    }
+
     var overallStatusIcon: String {
-        if runs.isEmpty { return "circle.dashed" }
-        if runs.contains(where: { $0.status == .failure }) { return "xmark.circle.fill" }
-        if runs.contains(where: { $0.status == .running }) { return "arrow.triangle.2.circlepath" }
-        if runs.contains(where: { $0.status == .queued }) { return "clock.fill" }
-        return "checkmark.circle.fill"
+        switch overallStatus {
+        case .failure:  return "xmark.circle.fill"
+        case .running:  return "arrow.triangle.2.circlepath"
+        case .queued:   return "clock.fill"
+        case .success:  return "checkmark.circle.fill"
+        default:        return "circle.dashed"
+        }
     }
 
     var overallStatusColor: Color {
-        if runs.isEmpty { return .secondary }
-        if runs.contains(where: { $0.status == .failure }) { return .red }
-        if runs.contains(where: { $0.status == .running }) { return .orange }
-        return .green
+        switch overallStatus {
+        case .failure:  return .red
+        case .running:  return .orange
+        case nil:       return .secondary
+        default:        return .green
+        }
     }
 
     // MARK: - Persistence

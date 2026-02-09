@@ -7,12 +7,6 @@ struct GHActionsMonitorApp: App {
     var body: some Scene {
         MenuBarExtra {
             MenuBarContentView(viewModel: viewModel)
-                .onAppear {
-                    viewModel.startPolling()
-                }
-                .onDisappear {
-                    // Keep polling even when popover is closed
-                }
         } label: {
             HStack(spacing: 4) {
                 Image(systemName: viewModel.overallStatusIcon)

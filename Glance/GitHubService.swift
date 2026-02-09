@@ -16,23 +16,18 @@ struct GitHubWorkflowRun: Codable {
     let id: Int
     let name: String?
     let headBranch: String?
-    let headSha: String
     let status: String?
     let conclusion: String?
     let htmlUrl: String
     let displayTitle: String?
-    let event: String?
-    let createdAt: String
     let updatedAt: String
     let runNumber: Int
 
     enum CodingKeys: String, CodingKey {
-        case id, name, status, conclusion, event
+        case id, name, status, conclusion
         case headBranch = "head_branch"
-        case headSha = "head_sha"
         case htmlUrl = "html_url"
         case displayTitle = "display_title"
-        case createdAt = "created_at"
         case updatedAt = "updated_at"
         case runNumber = "run_number"
     }
