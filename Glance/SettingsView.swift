@@ -59,6 +59,16 @@ struct GeneralSettingsTab: View {
                     Text("2 minutes").tag(120.0)
                     Text("5 minutes").tag(300.0)
                 }
+
+                Text("Uses conditional requests (ETag) so unchanged responses don't count against your rate limit.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section("Notifications") {
+                Text("You'll get a macOS notification when a build changes to **Passed** or **Failed**.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
         .padding(20)
@@ -127,12 +137,20 @@ struct RepoSettingsTab: View {
     }
 
     private func addRepo() {
-        let trimmed = newRepoInput.trimmingCharacters(in: .whitespaces)
+        let trimmed = newRepoInput
+            .trimmingCharacters(in: .whitespaces)
+            .replacingOccurrences(of: "https://github.com/", with: "")
+            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+
         let parts = trimmed.split(separator: "/")
-        guard parts.count == 2, !parts[0].isEmpty, !parts[1].isEmpty else {
-            inputError = "Use the format: owner/repo (e.g. apple/swift)"
+        guard parts.count == 2,
+              !parts[0].isEmpty,
+              !parts[1].isEmpty
+        else {
+            inputError = "Use the format: owner/repo (e.g. stuxf/gh-monitor)"
             return
         }
+
         inputError = nil
         viewModel.addRepo(fullName: trimmed)
         newRepoInput = ""
