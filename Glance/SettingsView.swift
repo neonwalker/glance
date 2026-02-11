@@ -30,17 +30,11 @@ struct GeneralSettingsTab: View {
     var body: some View {
         Form {
             Section("GitHub Authentication") {
-                SecureField("Personal Access Token", text: $viewModel.githubToken)
+                SecureField("Token", text: $viewModel.githubToken)
                     .textFieldStyle(.roundedBorder)
-
-                Text("Generate a fine-grained token at github.com/settings/tokens with **Actions (read)** permission on your repos.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
 
                 if !viewModel.githubToken.isEmpty {
                     HStack(spacing: 4) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
                         Text("Token configured")
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -60,7 +54,7 @@ struct GeneralSettingsTab: View {
                 }
             }
 
-            Section("Polling") {
+            Section {
                 Picker("Check every", selection: $viewModel.pollInterval) {
                     Text("15 seconds").tag(15.0)
                     Text("30 seconds").tag(30.0)
@@ -68,17 +62,9 @@ struct GeneralSettingsTab: View {
                     Text("2 minutes").tag(120.0)
                     Text("5 minutes").tag(300.0)
                 }
-
-                Text("Uses conditional requests (ETag) so unchanged responses don't count against your rate limit.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
 
-            Section("Notifications") {
-                Text("You'll get a macOS notification when a build changes to **Passed** or **Failed**.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+
         }
         .padding(20)
     }
