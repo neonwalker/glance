@@ -76,7 +76,7 @@ class MenuBarViewModel: ObservableObject {
                     owner: repo.owner,
                     repo: repo.name,
                     token: githubToken,
-                    perPage: 3
+                    perPage: 10
                 )
                 allRuns.append(contentsOf: apiRuns.map { mapRun($0, for: repo) })
             } catch {
