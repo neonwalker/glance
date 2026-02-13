@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - GitHub API Response Models (Codable)
 
-struct GitHubWorkflowRunsResponse: Codable {
+nonisolated struct GitHubWorkflowRunsResponse: Codable {
     let totalCount: Int
     let workflowRuns: [GitHubWorkflowRun]
 
@@ -12,7 +12,7 @@ struct GitHubWorkflowRunsResponse: Codable {
     }
 }
 
-struct GitHubWorkflowRun: Codable {
+nonisolated struct GitHubWorkflowRun: Codable {
     let id: Int
     let name: String?
     let headBranch: String?
@@ -35,7 +35,7 @@ struct GitHubWorkflowRun: Codable {
 
 // MARK: - Rate Limit Tracking
 
-struct GitHubRateLimit {
+nonisolated struct GitHubRateLimit {
     let limit: Int
     let remaining: Int
     let resetDate: Date

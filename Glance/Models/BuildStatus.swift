@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - Domain Models
-
 enum BuildStatus: String, CaseIterable {
     case success
     case failure
@@ -43,7 +41,6 @@ enum BuildStatus: String, CaseIterable {
         }
     }
 
-    /// Map GitHub API status + conclusion to our domain model
     static func from(status: String?, conclusion: String?) -> BuildStatus {
         switch status {
         case "queued", "waiting", "requested", "pending":
@@ -64,33 +61,5 @@ enum BuildStatus: String, CaseIterable {
         default:
             return .unknown
         }
-    }
-}
-
-/// A monitored repository (user-configured)
-struct MonitoredRepo: Identifiable, Codable, Equatable {
-    var id: String { "\(owner)/\(name)" }
-    let owner: String
-    let name: String
-
-    var fullName: String { "\(owner)/\(name)" }
-}
-
-/// A workflow run as displayed in the UI
-struct WorkflowRun: Identifiable {
-    let id: Int
-    let repo: MonitoredRepo
-    let workflowName: String
-    let branch: String
-    let status: BuildStatus
-    let displayTitle: String
-    let htmlUrl: String
-    let updatedAt: Date
-    let runNumber: Int
-
-    var timeAgo: String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: updatedAt, relativeTo: Date())
     }
 }

@@ -1,77 +1,5 @@
 import SwiftUI
 
-struct SettingsView: View {
-    @ObservedObject var viewModel: MenuBarViewModel
-
-    var body: some View {
-        TabView {
-            GeneralSettingsTab(viewModel: viewModel)
-                .tabItem {
-                    Label("General", systemImage: "gear")
-                }
-
-            RepoSettingsTab(viewModel: viewModel)
-                .tabItem {
-                    Label("Repositories", systemImage: "folder")
-                }
-        }
-        .frame(width: 480, height: 340)
-        .onAppear {
-            NSApp.activate(ignoringOtherApps: true)
-        }
-    }
-}
-
-// MARK: - General Tab
-
-struct GeneralSettingsTab: View {
-    @ObservedObject var viewModel: MenuBarViewModel
-
-    var body: some View {
-        Form {
-            Section("GitHub Authentication") {
-                SecureField("Token", text: $viewModel.githubToken)
-                    .textFieldStyle(.roundedBorder)
-
-                if !viewModel.githubToken.isEmpty {
-                    HStack(spacing: 4) {
-                        Text("Token configured")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-
-                        if let remaining = viewModel.rateLimitRemaining {
-                            Text("· \(remaining) calls remaining")
-                                .font(.caption)
-                                .foregroundStyle(.tertiary)
-                        }
-
-                        if let reset = viewModel.rateLimitResetDate {
-                            Text("· resets \(reset, style: .relative)")
-                                .font(.caption)
-                                .foregroundStyle(.tertiary)
-                        }
-                    }
-                }
-            }
-
-            Section {
-                Picker("Check every", selection: $viewModel.pollInterval) {
-                    Text("15 seconds").tag(15.0)
-                    Text("30 seconds").tag(30.0)
-                    Text("60 seconds").tag(60.0)
-                    Text("2 minutes").tag(120.0)
-                    Text("5 minutes").tag(300.0)
-                }
-            }
-
-
-        }
-        .padding(20)
-    }
-}
-
-// MARK: - Repos Tab
-
 struct RepoSettingsTab: View {
     @ObservedObject var viewModel: MenuBarViewModel
     @State private var newRepoInput = ""
@@ -139,7 +67,7 @@ struct RepoSettingsTab: View {
             .split(separator: "/")
 
         guard parts.count == 2, !parts[0].isEmpty, !parts[1].isEmpty else {
-            inputError = "Use the format: owner/repo (e.g. stuxf/gh-monitor)"
+            inputError = "Use the format: owner/repo (e.g. neonwalker/glance)"
             return
         }
 
