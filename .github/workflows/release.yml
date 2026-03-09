@@ -1,0 +1,44 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: |
+          xcodebuild \
+            -project Glance.xcodeproj \
+            -scheme Glance \
+            -configuration Release \
+            -destination 'platform=macOS' \
+            -derivedDataPath DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            clean build
+
+      - name: Create DMG
+        run: |
+          APP=$(find DerivedData -name "Glance.app" -type d | head -1)
+          mkdir staging
+          cp -r "$APP" staging/
+          ln -s /Applications staging/Applications
+          hdiutil create \
+            -volname Glance \
+            -srcfolder staging \
+            -ov \
+            -format UDZO \
+            Glance.dmg
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Glance.dmg
+          generate_release_notes: true
