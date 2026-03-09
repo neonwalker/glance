@@ -9,6 +9,7 @@ class MenuBarViewModel: ObservableObject {
     @Published var lastError: String?
     @Published var rateLimitRemaining: Int?
     @Published var rateLimitResetDate: Date?
+    @Published var overallStatus: BuildStatus?
 
     @Published var monitoredRepos: [MonitoredRepo] = [] {
         didSet { saveRepos() }
@@ -106,6 +107,7 @@ class MenuBarViewModel: ObservableObject {
         }
 
         self.runs = allRuns
+        self.overallStatus = Self.computeOverallStatus(from: allRuns)
         self.isLoading = false
     }
 
@@ -152,11 +154,13 @@ class MenuBarViewModel: ObservableObject {
 
     // MARK: - Overall Status (for menu bar icon)
 
-    var overallStatus: BuildStatus? {
-        guard !runs.isEmpty else { return nil }
-        if runs.contains(where: { $0.status == .failure }) { return .failure }
-        if runs.contains(where: { $0.status == .running }) { return .running }
-        if runs.contains(where: { $0.status == .queued }) { return .queued }
+    private static func computeOverallStatus(from runs: [WorkflowRun]) -> BuildStatus? {
+        let latest = Dictionary(grouping: runs, by: { "\($0.repo.fullName)/\($0.workflowName)" })
+            .compactMap(\.value.first)
+        guard !latest.isEmpty else { return nil }
+        if latest.contains(where: { $0.status == .failure }) { return .failure }
+        if latest.contains(where: { $0.status == .running }) { return .running }
+        if latest.contains(where: { $0.status == .queued }) { return .queued }
         return .success
     }
 
