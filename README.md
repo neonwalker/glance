@@ -4,6 +4,8 @@
 
 A lightweight macOS menu bar app for monitoring GitHub Actions CI/CD pipelines in real time.
 
+![App Demo](assets/demo.gif)
+
 ## Features
 
 - **Live status** - see passing, failing, running, and queued workflow runs at a glance
