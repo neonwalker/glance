@@ -10,10 +10,8 @@ A lightweight macOS menu bar app for monitoring GitHub Actions CI/CD pipelines i
 
 - **Live status** - see passing, failing, running, and queued workflow runs at a glance
 - **Multiple repos** - monitor as many repositories as you like from one place
-- **Smart icon** - the menu bar icon reflects the worst state across all your pipelines
-- **ETag caching** - conditional requests mean unchanged results don't count against your API rate limit
+- **Smart icon** - the menu bar icon becomes filled if there are new runs
 - **Rate limit display** - see remaining API calls and when the limit resets
-- **Notifications** - get a macOS notification when a build finishes or fails
 - **Configurable polling** - check every 15 seconds up to 5 minutes
 
 ## Requirements
