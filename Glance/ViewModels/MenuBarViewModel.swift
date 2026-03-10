@@ -9,7 +9,7 @@ class MenuBarViewModel: ObservableObject {
     @Published var lastError: String?
     @Published var rateLimitRemaining: Int?
     @Published var rateLimitResetDate: Date?
-    @Published var overallStatus: BuildStatus?
+    @Published var hasNewActivity: Bool = false
 
     @Published var monitoredRepos: [MonitoredRepo] = [] {
         didSet { saveRepos() }
@@ -21,6 +21,7 @@ class MenuBarViewModel: ObservableObject {
     private let service = GitHubService()
     private var pollingTask: Task<Void, Never>?
     private var previousStatuses: [String: BuildStatus] = [:]
+    private var hasLoadedOnce = false
     private static let reposKey = "monitoredRepos"
 
     private static let isoFormatter: ISO8601DateFormatter = {
@@ -93,10 +94,20 @@ class MenuBarViewModel: ObservableObject {
             return a.updatedAt > b.updatedAt
         }
 
+        let isFirstLoad = !hasLoadedOnce
+        hasLoadedOnce = true
+
         for run in allRuns {
             let key = "\(run.repo.fullName):\(run.workflowName):\(run.runNumber)"
-            if let previous = previousStatuses[key], previous != run.status {
-                sendNotification(run: run, previousStatus: previous)
+            if !isFirstLoad {
+                if let previous = previousStatuses[key] {
+                    if previous != run.status {
+                        sendNotification(run: run, previousStatus: previous)
+                        hasNewActivity = true
+                    }
+                } else {
+                    hasNewActivity = true
+                }
             }
             previousStatuses[key] = run.status
         }
@@ -107,7 +118,6 @@ class MenuBarViewModel: ObservableObject {
         }
 
         self.runs = allRuns
-        self.overallStatus = Self.computeOverallStatus(from: allRuns)
         self.isLoading = false
     }
 
@@ -152,35 +162,39 @@ class MenuBarViewModel: ObservableObject {
         monitoredRepos.removeAll { $0 == repo }
     }
 
-    // MARK: - Overall Status (for menu bar icon)
+    // MARK: - Grouped runs for menu (per repo)
 
-    private static func computeOverallStatus(from runs: [WorkflowRun]) -> BuildStatus? {
-        let latest = Dictionary(grouping: runs, by: { "\($0.repo.fullName)/\($0.workflowName)" })
+    struct RepoRunGroup: Identifiable {
+        let repo: MonitoredRepo
+        let runs: [WorkflowRun]
+        let latestStatus: BuildStatus?
+        var id: String { repo.id }
+    }
+
+    var runsByRepo: [RepoRunGroup] {
+        monitoredRepos.compactMap { repo in
+            let repoRuns = runs.filter { $0.repo == repo }
+            guard !repoRuns.isEmpty else { return nil }
+            return RepoRunGroup(
+                repo: repo,
+                runs: repoRuns,
+                latestStatus: Self.computeRepoStatus(from: repoRuns)
+            )
+        }
+    }
+
+    func clearNewActivity() {
+        hasNewActivity = false
+    }
+
+    private static func computeRepoStatus(from runs: [WorkflowRun]) -> BuildStatus? {
+        let latest = Dictionary(grouping: runs, by: { $0.workflowName })
             .compactMap(\.value.first)
         guard !latest.isEmpty else { return nil }
         if latest.contains(where: { $0.status == .failure }) { return .failure }
         if latest.contains(where: { $0.status == .running }) { return .running }
         if latest.contains(where: { $0.status == .queued }) { return .queued }
         return .success
-    }
-
-    var overallStatusIcon: String {
-        switch overallStatus {
-        case .failure:  return "xmark.circle.fill"
-        case .running:  return "arrow.triangle.2.circlepath"
-        case .queued:   return "clock.fill"
-        case .success:  return "checkmark.circle.fill"
-        default:        return "circle.dashed"
-        }
-    }
-
-    var overallStatusColor: Color {
-        switch overallStatus {
-        case .failure:  return .red
-        case .running:  return .orange
-        case nil:       return .secondary
-        default:        return .green
-        }
     }
 
     // MARK: - Persistence

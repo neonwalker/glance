@@ -3,6 +3,21 @@ import SwiftUI
 struct MenuBarContentView: View {
     @ObservedObject var viewModel: MenuBarViewModel
     @Environment(\.dismiss) private var dismiss
+    @AppStorage("collapsedRepos") private var collapsedReposRaw: String = ""
+
+    private var collapsedRepos: Set<String> {
+        Set(collapsedReposRaw.split(separator: ",").map(String.init).filter { !$0.isEmpty })
+    }
+
+    private func isExpanded(_ id: String) -> Bool {
+        !collapsedRepos.contains(id)
+    }
+
+    private func toggle(_ id: String) {
+        var set = collapsedRepos
+        if set.contains(id) { set.remove(id) } else { set.insert(id) }
+        collapsedReposRaw = set.joined(separator: ",")
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -15,6 +30,9 @@ struct MenuBarContentView: View {
             footerView
         }
         .frame(width: 360)
+        .onAppear {
+            viewModel.clearNewActivity()
+        }
     }
 
     private var headerView: some View {
@@ -97,7 +115,7 @@ struct MenuBarContentView: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 32)
-        } else if viewModel.runs.isEmpty && !viewModel.isLoading {
+        } else if viewModel.runsByRepo.isEmpty && !viewModel.isLoading {
             VStack(spacing: 8) {
                 Image(systemName: "checkmark.seal")
                     .font(.largeTitle)
@@ -110,14 +128,45 @@ struct MenuBarContentView: View {
             .padding(.vertical, 32)
         } else {
             ScrollView {
-                LazyVStack(spacing: 2) {
-                    ForEach(viewModel.runs) { run in
-                        RunRowView(run: run)
+                VStack(spacing: 0) {
+                    ForEach(viewModel.runsByRepo) { group in
+                        Button {
+                            toggle(group.id)
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: isExpanded(group.id) ? "chevron.down" : "chevron.right")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 12)
+                                Text(group.repo.fullName)
+                                    .font(.system(.subheadline, design: .monospaced, weight: .medium))
+                                    .lineLimit(1)
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                if let status = group.latestStatus {
+                                    Image(systemName: status.icon)
+                                        .foregroundStyle(status.color)
+                                        .font(.system(size: 14))
+                                }
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+
+                        if isExpanded(group.id) {
+                            ForEach(group.runs) { run in
+                                RunRowView(run: run)
+                            }
+                        }
+
+                        Divider()
                     }
                 }
                 .padding(.vertical, 4)
             }
-            .frame(maxHeight: 360)
+            .frame(maxHeight: 400)
         }
     }
 
@@ -144,4 +193,3 @@ struct MenuBarContentView: View {
         .padding(.vertical, 8)
     }
 }
-

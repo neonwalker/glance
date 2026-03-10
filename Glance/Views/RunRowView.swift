@@ -12,14 +12,12 @@ struct RunRowView: View {
                 .frame(width: 20)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(run.repo.fullName)
-                    .font(.system(.body, design: .monospaced, weight: .medium))
+                Text(run.workflowName)
+                    .font(.system(.body, design: .default, weight: .medium))
                     .lineLimit(1)
 
                 HStack(spacing: 6) {
                     Label(run.branch, systemImage: "arrow.branch")
-                    Text("·")
-                    Text(run.workflowName)
                     Text("·")
                     Text(run.timeAgo)
                 }
