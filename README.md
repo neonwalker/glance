@@ -4,7 +4,7 @@
 
 A lightweight macOS menu bar app for monitoring GitHub Actions CI/CD pipelines in real time.
 
-![App Demo](assets/demo.gif)
+![App Demo](assets/glance.gif)
 
 ## Features
 
