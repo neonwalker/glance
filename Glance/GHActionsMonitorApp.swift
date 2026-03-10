@@ -8,13 +8,12 @@ struct GHActionsMonitorApp: App {
         MenuBarExtra {
             MenuBarContentView(viewModel: viewModel)
         } label: {
-            HStack(spacing: 3) {
-                Text("CI")
-                if viewModel.hasNewActivity {
-                    Circle()
-                        .fill(.orange)
-                        .frame(width: 5, height: 5)
-                }
+            if viewModel.hasNewActivity {
+                Image(systemName: "hammer.fill")
+                    .symbolRenderingMode(.palette)
+                    .foregroundStyle(.primary, .orange)
+            } else {
+                Image(systemName: "hammer")
             }
         }
         .menuBarExtraStyle(.window)
